@@ -184,15 +184,28 @@ def generate_visualizations():
 
         days.append(str(month) + '/' + str(day))
 
-    #get temps
-    cur.execute()
-    conn.commit()
-
+    #get temp data
     temps = []
+    cur.execute("SELECT temp FROM weather LIMIT 25")
+    conn.commit()
+    for i in cur.fetchall():
+        temps.append(i[0])
+
+    #get humidity data
     humidity = []
+    cur.execute("SELECT humidity FROM weather LIMIT 25")
+    conn.commit()
+    for i in cur.fetchall():
+        humidity.append(i[0])
+
+    #get wind data
     wind = []
+    cur.execute("SELECT wind FROM weather LIMIT 25")
+    conn.commit()
+    for i in cur.fetchall():
+        wind.append(i[0])
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(30, 10))
     
     #add line plot data
     ax1.plot(days, temps, "g-", label = "Temperature (F)")
@@ -208,17 +221,45 @@ def generate_visualizations():
     ax1.grid()
 
     #BAR GRAPH (histogram?)
-    level = []
     #use count to total days of different levels of precipitation
     total = []
+    cur.execute("SELECT COUNT(weather.general_id) FROM weather JOIN general ON weather.general_id = general.id WHERE general.description = 'light rain'")
+    total.append(cur.fetchone()[0])
+    cur.execute("SELECT COUNT(weather.general_id) FROM weather JOIN general ON weather.general_id = general.id WHERE general.description = 'moderate rain'")
+    total.append(cur.fetchone()[0])
+    cur.execute("SELECT COUNT(weather.general_id) FROM weather JOIN general ON weather.general_id = general.id WHERE general.description = 'no rain'")
+    total.append(cur.fetchone()[0])
+    cur.execute("SELECT COUNT(weather.general_id) FROM weather JOIN general ON weather.general_id = general.id WHERE general.description = 'heavy rain'")
+    total.append(cur.fetchone()[0])
+    conn.commit()
+
+    #get list of different descriptions (levels of precipitation)
+    level = []
+    cur.execute("SELECT description FROM general")
+    conn.commit()
+    for i in cur.fetchall():
+        level.append(str.capitalize(i[0]))
+
+    #write calculations to a txt file
+    path = os.path.dirname(os.path.abspath(__file__))
+    file = (path+'/'+"weather_calculations.txt")
+    f = open(file, 'w')
+
+    #find average temp
+    cur.execute("SELECT AVG(temp) FROM weather LIMIT 25")
+    conn.commit()
+    avg_temp = cur.fetchone()[0]
+
+    f.write("Over the last 100 days, a total of " + str(max(total)) + " days had " + level[total.index(max(total))] + "\n")
+    f.write("The average temperature over the last 25 days was " + str(avg_temp) + " degrees Fahrenheit")
 
     #add bar graph data
-    ax2.barh(total, level)
+    ax2.bar(level, total)
 
     #add bar graph labels
-    ax2.set_xlabel("Number of Days")
-    ax2.set_ylabel("Level of Precipitation")
-    ax2.set_title("Levels of Precipitation Over the Past 25 Days")
+    ax2.set_ylabel("Number of Days")
+    ax2.set_xlabel("Level of Precipitation")
+    ax2.set_title("Levels of Precipitation Over the Past 100 Days")
 
     #save the figure
     fig.savefig("historical_weather.png")
@@ -244,15 +285,12 @@ def main():
     print(weather_dict)
 
     #get historical weather data for database
+    #UNCOMMENT LINE BELOW TO REDO DATABASE
     #old_weather = retrieve_historical_weather_data(loc)
 
     #make visualizations from historical weather database
-    #generate_visualizations()
-
-    #do calculations (specify what)
-    #NEED TO CALCULATE SOMETHING (COUNT, AVG, ETC.)
-    #NEED TO DO A JOIN
-    #WRITE CALCULATIONS TO FILE AS TEXT
+    #do calculations with weather data and write to txt
+    generate_visualizations()
 
 if __name__ == "__main__":
     main()
