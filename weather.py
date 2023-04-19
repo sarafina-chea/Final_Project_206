@@ -279,7 +279,8 @@ def parse_weather_data(weather_json):
     weather_py = json.loads(weather_json)
     #rain/precipitation would be specified in general
     weather_dict["general"] = weather_py["weather"][0]["description"]
-    weather_dict["temp"] = weather_py["main"]["temp"]
+    temp_kelvin = weather_py["main"]["temp"]
+    weather_dict['temp'] = (temp_kelvin * (9/5.0)) - 459.67
     weather_dict["humidity"] = weather_py["main"]["humidity"]
     weather_dict["wind"] = weather_py["wind"]["speed"]
 
