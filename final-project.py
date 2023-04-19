@@ -3,8 +3,12 @@ import random
 from bs4 import BeautifulSoup
 import matplotlib.pyplot as plt
 import nltk
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
+#NEW (commented out so program can hopefully run faster, already downloaded after first run)
+#nltk.download('punkt')
+#nltk.download('averaged_perceptron_tagger')
+
+import os
+import sqlite3
 
 def get_user_location():
     # Trying to get user location from their API
@@ -49,11 +53,39 @@ def scrape_fashion_data():
     return soup
 
 def parse_fashion_data(fashion_soup):
+    #START NEW
+
+    #make connections to database
+    path = os.path.dirname(os.path.abspath(__file__))
+    conn = sqlite3.connect(path+'/'+"weather_db.db")
+    cur = conn.cursor()
+
+    #make table for weather data and general descriptions
+    cur.execute("CREATE TABLE IF NOT EXISTS vogue (id INTEGER PRIMARY KEY NOT NULL UNIQUE, season_id INTEGER, clothing_id INTEGER, adjective TEXT UNIQUE)")
+    cur.execute("CREATE TABLE IF NOT EXISTS seasons (id INTEGER PRIMARY KEY NOT NULL UNIQUE, season TEXT UNIQUE)")
+    cur.execute("CREATE TABLE IF NOT EXISTS clothes (id INTEGER PRIMARY KEY NOT NULL UNIQUE, type TEXT UNIQUE)")
+    conn.commit()
+
+    #END NEW
+
+
     seasons = ['fall', 'autumn', 'winter', 'summer', 'spring']
     season_clothing_dict = {}
     article_links = fashion_soup.find_all('a', class_='SummaryItemHedLink-ciaMYZ')
 
-    for article in fashion_soup.find_all('a', {'class': 'SummaryItemHedLink-ciaMYZ'}):
+    #NEW: ADDED INDEX TO ACCESS NEW ARTICLES EACH TIME RUN
+    try:
+        last = cur.execute("SELECT MAX(id) FROM vogue").fetchone()
+        if (last[0] == None):
+            last = 0
+        else:
+            last = last[0] + 1
+    except:
+        last = 0
+    
+    conn.commit()
+    #NEW: ADDED [last:] FOR ABOVE PURPOSE
+    for article in fashion_soup.find_all('a', {'class': 'SummaryItemHedLink-ciaMYZ'})[last:]:
         title = article.find('h3').text.lower()
         if 'fall' not in title and 'autumn' not in title and 'spring' not in title and 'winter' not in title and 'summer' not in title:
             continue
@@ -65,6 +97,13 @@ def parse_fashion_data(fashion_soup):
 
         # Find the season mentioned in the article title
         for s in ['fall', 'autumn', 'winter', 'summer', 'spring']:
+            
+            #START NEW
+            #add seasons to seasons table
+            cur.execute("INSERT OR IGNORE INTO seasons (season) VALUES (?)", (s.capitalize(),))
+            conn.commit()
+            #END NEW
+
             if s in title:
                 season = s.capitalize()
                 break
@@ -76,6 +115,12 @@ def parse_fashion_data(fashion_soup):
                 item_text = item.text.lower()
                 for clothing_type in ['dress', 'jacket', 'coat', 'shirt', 'pants', 'jeans', 'skirt', 'blouse', 'sweater', 'boots']:
                     if clothing_type in item_text:
+
+                        #START NEW
+                        cur.execute("INSERT OR IGNORE INTO clothes (type) VALUES (?)", (clothing_type,))
+                        conn.commit()
+                        #END NEW
+
                         adjectives = []
                         # Use the NLTK POS tagger to identify adjectives
                         words = nltk.word_tokenize(item_text)
@@ -87,6 +132,21 @@ def parse_fashion_data(fashion_soup):
                             if clothing_type not in clothing_items:
                                 clothing_items[clothing_type] = []
                             clothing_items[clothing_type].extend(adjectives)
+
+                            #START NEW
+                            #add data to tables
+                            id = cur.execute("SELECT MAX(id) FROM vogue").fetchone()[0]
+                            if id == None:
+                                id = 0
+                            else:
+                                id += 1
+                            season_id = int(cur.execute("SELECT id FROM seasons WHERE season = (?)", (season,)).fetchone()[0])
+                            clothing_id = int(cur.execute("SELECT id FROM clothes WHERE type = (?)", (clothing_type,)).fetchone()[0])
+                            for adj in adjectives:
+                                cur.execute("INSERT OR IGNORE INTO vogue (id, season_id, clothing_id, adjective) VALUES (?,?,?,?)", (id, season_id, clothing_id, adj))
+                            conn.commit()
+                            #END NEW
+
             season_clothing_dict[season] = clothing_items
     return season_clothing_dict
 

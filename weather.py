@@ -71,13 +71,13 @@ def retrieve_historical_weather_data(user_location):
     except:
         previous = 0
 
-    #make 25 calls and store data in weather_db
+    #make *7* calls and store data in weather_db
     #prep api call args with user location and current date (RESOURCE: https://www.geeksforgeeks.org/get-current-date-using-python/)
     lat = re.findall('-*\d+.\d{2}', user_location)[0]
     lon = re.findall(', (-*\d+.\d{2})', user_location)[0]
     today = str(date.today())
 
-    for i in range(25):
+    for i in range(7):
         month = int(re.findall('-(\d+)-', today)[0])
         day = int(re.findall('\d+-\d+-(\d+)', today)[0])
         #api call limit: 50,000 calls per day
@@ -278,7 +278,7 @@ def parse_weather_data(weather_json):
     weather_dict = {}
     weather_py = json.loads(weather_json)
     #rain/precipitation would be specified in general
-    weather_dict["general"] = weather_py["weather"][0]["description"]
+    weather_dict["general"] = weather_py["weather"][0]["main"]
     temp_kelvin = weather_py["main"]["temp"]
     weather_dict['temp'] = (temp_kelvin * (9/5.0)) - 459.67
     weather_dict["humidity"] = weather_py["main"]["humidity"]
