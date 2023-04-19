@@ -79,7 +79,7 @@ def retrieve_historical_weather_data(user_location):
 
     for i in range(25):
         month = int(re.findall('-(\d+)-', today)[0])
-        day = int(re.findall('-(\d+)', today)[0])
+        day = int(re.findall('\d+-\d+-(\d+)', today)[0])
         #api call limit: 50,000 calls per day
         #subtract i and last date gathered to get past 25 days
         day -= (i + previous)
@@ -205,40 +205,49 @@ def generate_visualizations():
     for i in cur.fetchall():
         wind.append(i[0])
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(30, 10))
+    #fig, (ax1, ax2, ax3, ax4) = plt.subplots(2, 2, figsize=(30, 10))
+    fig = plt.figure(figsize=(30, 10))
+    ax1 = fig.add_subplot(2,2,1)
+    ax2 = fig.add_subplot(2,2,2)
+    ax3 = fig.add_subplot(2,2,3)
+    ax4 = fig.add_subplot(2,2,4)
     
+    #reverse data so increasing in date
+    days = days[::-1]
+    temps = temps[::-1]
+    humidity = humidity[::-1]
+    wind = wind[::-1]
+
     #add line plot data
     ax1.plot(days, temps, "g-", label = "Temperature (F)")
-    #MOVE TO SEPARATE GRAPH??
-    ax1.plot(days, humidity, "b-", label = "Humidity (%)")
-    ax1.plot(days, wind, "r-", label = "Wind (meter/sec)")
-    ax1.legend()
+    ax3.plot(days, humidity, "b-", label = "Humidity (%)")
+    ax4.plot(days, wind, "r-", label = "Wind (meters/sec)")
+    #ax1.legend()
 
     #add line plot labels
     ax1.set_xlabel("Trend over Days")
-    #ax1.set_ylabel("Level")
-    ax1.set_title("Average Daily Levels of Temperature, Humidity, and Wind Over the Past 25 Days")
+    ax1.set_title("Average Daily Levels of Temperature (F) Over the Past 25 Days")
     ax1.grid()
+    ax3.set_xlabel("Trend over Days")
+    ax3.set_title("Average Daily Levels of Humidity (%) Over the Past 25 Days")
+    ax3.grid()
+    ax4.set_xlabel("Trend over Days")
+    ax4.set_title("Average Daily Levels of Wind (meters/sec) Over the Past 25 Days")
+    ax4.grid()
 
     #BAR GRAPH (histogram?)
+    #get list of different descriptions (levels of precipitation)
+    level = ["no rain", "light rain", "moderate rain", "heavy rain"]
+
     #use count to total days of different levels of precipitation
     total = []
-    cur.execute("SELECT COUNT(weather.general_id) FROM weather JOIN general ON weather.general_id = general.id WHERE general.description = 'light rain'")
-    total.append(cur.fetchone()[0])
-    cur.execute("SELECT COUNT(weather.general_id) FROM weather JOIN general ON weather.general_id = general.id WHERE general.description = 'moderate rain'")
-    total.append(cur.fetchone()[0])
-    cur.execute("SELECT COUNT(weather.general_id) FROM weather JOIN general ON weather.general_id = general.id WHERE general.description = 'no rain'")
-    total.append(cur.fetchone()[0])
-    cur.execute("SELECT COUNT(weather.general_id) FROM weather JOIN general ON weather.general_id = general.id WHERE general.description = 'heavy rain'")
-    total.append(cur.fetchone()[0])
+    for l in level:
+        cur.execute("SELECT COUNT(weather.general_id) FROM weather JOIN general ON weather.general_id = general.id WHERE general.description = (?)", (l,))
+        total.append(cur.fetchone()[0])
     conn.commit()
 
-    #get list of different descriptions (levels of precipitation)
-    level = []
-    cur.execute("SELECT description FROM general")
-    conn.commit()
-    for i in cur.fetchall():
-        level.append(str.capitalize(i[0]))
+    #reassign list with capitalized levels for labeling bar chart
+    level = ["No Rain", "Light Rain", "Moderate Rain", "Heavy Rain"]
 
     #write calculations to a txt file
     path = os.path.dirname(os.path.abspath(__file__))
