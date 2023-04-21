@@ -89,8 +89,10 @@ def parse_fashion_data(fashion_soup):
         title = article.find('h3').text.lower()
         if 'fall' not in title and 'autumn' not in title and 'spring' not in title and 'winter' not in title and 'summer' not in title:
             continue
-
-        url = 'https://www.vogue.com' + article['href']
+        if 'https://www.vogue.com' not in article['href']:
+            url = 'https://www.vogue.com' + article['href']
+        else:
+            url = article['href']
         article_response = requests.get(url)
         article_soup = BeautifulSoup(article_response.text, 'html.parser')
         season = None  
