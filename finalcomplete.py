@@ -184,11 +184,10 @@ def scrape_fashion_data():
 
 
 def parse_fashion_data(fashion_soup):
-    seasons = ['fall', 'autumn', 'winter', 'summer', 'spring']
     season_clothing_dict = {}
     article_links = fashion_soup.find_all('a', class_='SummaryItemHedLink-ciaMYZ')
 
-    for article in fashion_soup.find_all('a', {'class': 'SummaryItemHedLink-ciaMYZ'}):
+    for article in article_links:
         title = article.find('h3').text.lower()
         if 'fall' not in title and 'autumn' not in title and 'spring' not in title and 'winter' not in title and 'summer' not in title:
             continue
@@ -211,8 +210,7 @@ def parse_fashion_data(fashion_soup):
             clothing_items = {}
             for item in article_soup.find_all('p'):
                 item_text = item.text.lower()
-                print(item_text)
-                for clothing_type in ["Blouse","Cardigan","Coat","Dress","Hoodie","Jacket","Jeans","Jumpsuit","Leggings","Pants","Pant","Polo Shirt","Shirt","Shorts","Skirt","Sweater","Sweater Vest","Suit","Swimwear","Tank Top","T-Shirt","Underwear","Socks","Belt","Gloves","Hat","Jewelry","Scarf","Shoes","Sneakers","Boots","Sandals","Watch"]:
+                for clothing_type in ["blouse","cardigan","coat","dress","hoodie","jacket","jeans","jumpsuit","leggings","pants","pant","polo shirt","shirt","shorts","skirt","sweater","sweater vest","suit","swimwear","tank top","t-shirt","underwear","socks","belt","gloves","hat","jewelry","scarf","shoes","sneakers","boots","sandals","watch"]:
                     if clothing_type in item_text:
                         adjectives = []
                         # Use the NLTK POS tagger to identify adjectives
@@ -254,10 +252,6 @@ def query_forever21_api(fashion_data_dict):
         new_dict[season] = new_list
     return new_dict
 
-soup = scrape_fashion_data()
-dic = parse_fashion_data(soup)
-urls = query_forever21_api(dic)
-
 def parse_forever21_data(f21_urls):
     final_dict = {}
 
@@ -297,8 +291,6 @@ def parse_forever21_data(f21_urls):
         
         final_dict[seasons] = empty_dict
     return final_dict
-
-parse_forever21_data(urls)
 
 def generate_visualizations():
     #make lists of weather data to plot from first 25 datapoints
@@ -432,46 +424,34 @@ def get_outfit(weather_dict, season, fashion_dict):
     #     elif temperature >= 60 and temperature < 80:
     #     elif temperature >= 80 and temperature < 150:       
 
-    if precipitation == "Thunderstorm" or precipitation == "Rain" or precipitation == "Drizzle":   
-        season_products = fashion_dict.get(season)
-        if season_products:
-            top = None
-            bottom = None
-            shoe = None
-            dress_shoe_combo = None
-            for product_id, product_info in season_products.items():
-                category = product_info['PrimaryParentCategory']
-                if category == 'top':
-                    top = product_info
-                elif category == 'bottom':
-                    bottom = product_info
-                elif category == 'shoes':
-                    shoe = product_info
-                elif category == 'dress':
-                    for other_product_id, other_product_info in season_products.items():
-                        if other_product_info['PrimaryParentCategory'] == 'shoes' and other_product_id != product_id:
-                            dress_shoe_combo = (product_info, other_product_info)
-                            break
-            if dress_shoe_combo:
-                print(f"Matching dress and shoe combo found: {dress_shoe_combo[0]['DisplayName']} and {dress_shoe_combo[1]['DisplayName']}")
-            else:
-                found_products = []
-                if top:
-                    found_products.append(f"Top: {top['DisplayName']}")
-                if bottom:
-                    found_products.append(f"Bottom: {bottom['DisplayName']}")
-                if shoe:
-                    found_products.append(f"Shoe: {shoe['DisplayName']}")
-                if found_products:
-                    print("Could not find matching dress and shoe combo.")
-                    choice = input("Do you want to see the available products? (Y/N)").lower()
-                    if choice == 'y':
-                        for product in found_products:
-                            print(product)
+    if precipitation == "Thunderstorm" or precipitation == "Rain" or precipitation == "Drizzle": 
+        if temperature >= 32 and temperature < 60:
+            season_products = fashion_dict.get(season)
+            if season_products:
+                top = None
+                bottom = None
+                shoe = None
+                for product_id, product_info in season_products.items():
+                    category = product_info['PrimaryParentCategory']
+                    if category == 'top':
+                        top = product_info
+                    elif category == 'bottom':
+                        bottom = product_info
+                    elif category == 'shoes':
+                        shoe = product_info
+                if top and bottom and shoe:
+                    print(f"Top: {top['DisplayName']}\nBottom: {bottom['DisplayName']}\nShoe: {shoe['DisplayName']}")
                 else:
-                    print("Could not find any matching products for this season.")
-        else:
-            print("No products found for this season.")
+                    print("Could not find matching top, bottom, and shoe for this season.")
+                    found_products = [p for p in [top, bottom, shoe] if p is not None]
+                    if found_products:
+                        user_choice = input("Do you want to see the products that were found? (y/n) ")
+                        if user_choice.lower() == "y":
+                            for product in found_products:
+                                print(f"{product['PrimaryParentCategory'].capitalize()}: {product['DisplayName']}")
+            else:
+                print("No products found for this season.")
+    #   
     #     elif temperature >= 60 and temperature < 80:
     #     elif temperature >= 80 and temperature < 150:
     
@@ -479,7 +459,7 @@ def get_outfit(weather_dict, season, fashion_dict):
     #     if temperature >= 32:
     #     elif temperature >= 32 and temperature < 60:
         
-    # elif precipitation == "Clouds":
+    # if precipitation == "Clouds":
     #     if temperature >= 32:
     #     elif temperature >= 32 and temperature < 60:
     #     elif temperature >= 60 and temperature < 80:
@@ -491,15 +471,15 @@ def get_outfit(weather_dict, season, fashion_dict):
     #     elif temperature >= 60 and temperature < 80:
     #     elif temperature >= 80 and temperature < 150:
             
-
+soup = scrape_fashion_data()
 dic = parse_fashion_data(soup)
 urls = query_forever21_api(dic)
-print(urls)
+# print(urls)
 
-# soup = scrape_fashion_data()
-# loc = get_user_location()
-# weather_json = retrieve_weather_data(loc)
-# w_dict = parse_weather_data(weather_json)
-# season = get_season()
-# f_dict = parse_forever21_data(urls)
-# get_outfit(w_dict, season, f_dict)
+soup = scrape_fashion_data()
+loc = get_user_location()
+weather_json = retrieve_weather_data(loc)
+w_dict = parse_weather_data(weather_json)
+season = get_season()
+f_dict = parse_forever21_data(urls)
+get_outfit(w_dict, season, f_dict)
