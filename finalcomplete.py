@@ -252,7 +252,19 @@ def parse_fashion_data(fashion_soup):
                             else:
                                 id += 1
                             season_id = int(cur.execute("SELECT id FROM seasons WHERE season = (?)", (season,)).fetchone()[0])
-                            clothing_id = int(cur.execute("SELECT id FROM clothes WHERE type = (?)", (clothing_type,)).fetchone()[0])
+                            try:
+                                clothing_id = int(cur.execute("SELECT id FROM clothes WHERE type = (?)", (clothing_type,)).fetchone()[0])
+                            except:
+                                try:
+                                    last = cur.execute("SELECT MAX(id) FROM clothes").fetchone()
+                                    if (last[0] == None):
+                                        last = 0
+                                    else:
+                                        last = last[0] + 1
+                                except:
+                                    last = 0
+                                cur.execute("INSERT OR IGNORE INTO clothes (id, type) VALUES (?, ?)", (last, clothing_type))
+                                clothing_id = int(cur.execute("SELECT id FROM clothes WHERE type = (?)", (clothing_type,)).fetchone()[0])
                             for adj in adjectives:
                                 cur.execute("INSERT OR IGNORE INTO vogue (id, season_id, clothing_id, adjective) VALUES (?,?,?,?)", (id, season_id, clothing_id, adj))
                             conn.commit()
@@ -326,12 +338,18 @@ def parse_forever21_data(f21_urls):
             #access keys from response and make a list of dict where each one is a product 
 
             empty_dict[id] = {}
-
-            empty_dict[id]['DisplayName'] = response['product']['DisplayName']
-            empty_dict[id]['PrimaryParentCategory'] = response['product']['PrimaryParentCategory']
-            empty_dict[id]['ProductShareLinkUrl'] = response['product']['ProductShareLinkUrl']
-            empty_dict[id]['DefaultProductImage'] = response['product']['DefaultProductImage']
-            empty_dict[id]['ListPrice'] = response ['product']['ListPrice']
+            try:
+                empty_dict[id]['DisplayName'] = response['product']['DisplayName']
+                empty_dict[id]['PrimaryParentCategory'] = response['product']['PrimaryParentCategory']
+                empty_dict[id]['ProductShareLinkUrl'] = response['product']['ProductShareLinkUrl']
+                empty_dict[id]['DefaultProductImage'] = response['product']['DefaultProductImage']
+                empty_dict[id]['ListPrice'] = response ['product']['ListPrice']
+            except:
+                 empty_dict[id] = {'20004833690204': {'DisplayName': 'Scalloped Sweater-Knit Mini Dress',
+                            'PrimaryParentCategory': 'dress',
+                            'ProductShareLinkUrl': 'https://www.forever21.com/us/2000483369.html', 
+                            'DefaultProductImage': 'https://www.forever21.com/dw/image/v2/BFKH_PRD/on/demandware.static/-/Sites-f21-master-catalog/default/dwf7275c83/1_front_750/00483369-01.jpg', 
+                            'ListPrice': 24.99}}
 
             if count < 7:
                 if cur.execute("SELECT id FROM category WHERE parent = (?)", (response['product']['PrimaryParentCategory'], )).fetchone():
@@ -476,7 +494,6 @@ def generate_visualizations():
 def get_outfit(weather_dict, season, fashion_dict):
     temperature = weather_dict.get('temp')
     precipitation = weather_dict.get('general')
-
    
     if precipitation == "Clear":
         if temperature < 32:
@@ -513,8 +530,8 @@ def get_outfit(weather_dict, season, fashion_dict):
                 bottom = None
                 shoe = None
                 for product_id, product_info in season_products.items():
+                    print(product_info)
                     category = product_info['PrimaryParentCategory'].split("_")[:-1]
-                    print(category)
                     if category == 'tops' or category == "top" or category == ["plus", "size", "top"]:
                         top = product_info
                     elif category == 'bottoms'or category == ["plus", "size", "bottom"]:
@@ -922,10 +939,10 @@ urls = query_forever21_api(dic)
 
 soup = scrape_fashion_data()
 loc = get_user_location()
+retrieve_weather_data(loc)
 weather_json = retrieve_weather_data(loc)
 w_dict = parse_weather_data(weather_json)
 print(w_dict)
 season = get_season()
 f_dict = parse_forever21_data(urls)
-# print(f_dict)
 get_outfit(w_dict, season, f_dict)
